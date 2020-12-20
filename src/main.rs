@@ -3,17 +3,25 @@ use specs::prelude::*;
 use specs_derive::Component;
 use std::cmp::{max, min};
 
+mod map;
+pub use crate::map::{Map, TileType};
+
+mod visibility_system;
+use visibility_system::VisibilitySystem;
+
 // ------------------------------------------------------------------------------------------------------------------ //
 pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
     min(u, max(v, l))
 }
 
+// ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component)]
-struct Position {
+pub struct Position {
     x: i32,
     y: i32,
 }
 
+// ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component)]
 struct Renderable {
     glyph: u8,
@@ -21,64 +29,28 @@ struct Renderable {
     bg: RGB,
 }
 
-#[derive(PartialEq, Copy, Clone)]
-enum TileType {
-    Wall,
-    Floor,
-}
-
 // ------------------------------------------------------------------------------------------------------------------ //
-pub fn xy_idx(x: i32, y: i32) -> usize {
-    (y as usize * 80) + x as usize
-}
-
-// // ------------------------------------------------------------------------------------------------------------------ //
-// pub fn new_map_rooms_and_corridors() -> Vec<TileType> {
-// 	let mut map = vec!{TilesType::Wall, }
-// }
-
-// ------------------------------------------------------------------------------------------------------------------ //
-/// Make a map with solid boundaries and 400 randomly placed walls
-fn new_map(gs: &State) -> Vec<TileType> {
-    let sx = gs.size.0;
-    let sy = gs.size.1;
-    let mut map = vec![TileType::Floor; (sx * sy) as usize];
-
-    for x in 0..sx {
-        map[xy_idx(x, 0)] = TileType::Wall;
-        map[xy_idx(x, sy - 1)] = TileType::Wall;
-    }
-
-    for y in 0..sy {
-        map[xy_idx(0, y)] = TileType::Wall;
-        map[xy_idx(sx - 1, y)] = TileType::Wall;
-    }
-
-    let mut rng = rltk::RandomNumberGenerator::new();
-
-    for _i in 0..400 {
-        let x = rng.roll_dice(1, sx - 1);
-        let y = rng.roll_dice(1, sy - 1);
-        let idx = xy_idx(x, y);
-        if idx != xy_idx(40, 25) {
-            map[idx] = TileType::Wall;
-        }
-    }
-
-    map
-}
-
 #[derive(Component)]
 struct LeftMover {}
 
-#[derive(Component, Debug)]
-struct Player {}
+// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component)]
+pub struct Viewshed {
+    pub visible_tiles: Vec<rltk::Point>,
+    pub range: i32,
+}
 
+// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component, Debug)]
+pub struct Player {}
+
+// ------------------------------------------------------------------------------------------------------------------ //
 struct State {
     size: (i32, i32),
     ecs: World,
 }
 
+// ------------------------------------------------------------------------------------------------------------------ //
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
@@ -87,8 +59,8 @@ impl GameState for State {
         player_input(self, ctx);
         self.run_systems();
 
-        let map = self.ecs.fetch::<Vec<TileType>>();
-        draw_map(&map, ctx);
+        let map = self.ecs.fetch::<Map>();
+        map.draw_map(&self.ecs, ctx);
 
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
@@ -98,8 +70,10 @@ impl GameState for State {
     }
 }
 
+// ------------------------------------------------------------------------------------------------------------------ //
 struct LeftWalker {}
 
+// ------------------------------------------------------------------------------------------------------------------ //
 impl<'a> System<'a> for LeftWalker {
     type SystemData = (ReadStorage<'a, LeftMover>, WriteStorage<'a, Position>);
 
@@ -113,28 +87,31 @@ impl<'a> System<'a> for LeftWalker {
     }
 }
 
+// ------------------------------------------------------------------------------------------------------------------ //
 impl State {
     fn run_systems(&mut self) {
         let mut lw = LeftWalker {};
         lw.run_now(&self.ecs);
+        let mut vis = VisibilitySystem {};
+        vis.run_now(&self.ecs);
         self.ecs.maintain();
     }
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 fn try_move_player(delta_x: i32, delta_y: i32, gs: &State) {
-    let mut ecs = &gs.ecs;
+    let ecs = &gs.ecs;
     let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
-    let map = ecs.fetch::<Vec<TileType>>();
+    let map = ecs.fetch::<Map>();
 
     for (_player, pos) in (&mut players, &mut positions).join() {
         let (nx, ny) = (
             range(0, pos.x + delta_x, gs.size.0 - 1),
             range(0, pos.y + delta_y, gs.size.1 - 1),
         );
-        let destination_idx = xy_idx(nx, ny);
-        if map[destination_idx] == TileType::Floor {
+        let destination_idx = map.xy_idx(nx, ny);
+        if map.tiles[destination_idx] == TileType::Floor {
             pos.x = nx;
             pos.y = ny;
         }
@@ -160,32 +137,6 @@ fn player_input(gs: &mut State, ctx: &mut Rltk) {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-fn draw_map(map: &[TileType], ctx: &mut Rltk) {
-    let mut y = 0;
-    let mut x = 0;
-    for tile in map.iter() {
-        let (color, character) = match tile {
-            TileType::Floor => (RGB::from_f32(0.5, 0.5, 0.5), '.'),
-            TileType::Wall => (RGB::from_f32(0.0, 1.0, 0.0), '#'),
-        };
-
-        ctx.set(
-            x,
-            y,
-            color,
-            RGB::from_f32(0., 0., 0.),
-            rltk::to_cp437(character),
-        );
-
-        x += 1;
-        if x > 79 {
-            x = 0;
-            y += 1;
-        }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------------------------ //
 fn main() {
     use rltk::RltkBuilder;
     let context = RltkBuilder::simple80x50()
@@ -198,33 +149,43 @@ fn main() {
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<LeftMover>();
+    gs.ecs.register::<Viewshed>();
     gs.ecs.register::<Player>();
 
-    gs.ecs.insert(new_map(&gs));
+    //gs.ecs.insert(new_map(&gs));
+    let map = Map::new_map_rooms_and_corridors(gs.size.0, gs.size.1);
+    let (px, py) = map.rooms[0].center();
 
+    gs.ecs.insert(map);
+
+    // create the player!
     gs.ecs
         .create_entity()
-        .with(Position { x: 40, y: 25 })
+        .with(Position { x: px, y: py })
         .with(Renderable {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
         })
         .with(Player {})
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 8,
+        })
         .build();
 
-    for i in 0..10 {
-        gs.ecs
-            .create_entity()
-            .with(Position { x: i * 7, y: 20 })
-            .with(Renderable {
-                glyph: rltk::to_cp437('☺'),
-                fg: RGB::named(rltk::RED),
-                bg: RGB::named(rltk::BLACK),
-            })
-            .with(LeftMover {})
-            .build();
-    }
+    // for i in 0..10 {
+    //     gs.ecs
+    //         .create_entity()
+    //         .with(Position { x: i * 7, y: 20 })
+    //         .with(Renderable {
+    //             glyph: rltk::to_cp437('☺'),
+    //             fg: RGB::named(rltk::RED),
+    //             bg: RGB::named(rltk::BLACK),
+    //         })
+    //         .with(LeftMover {})
+    //         .build();
+    // }
 
     rltk::main_loop(context, gs);
 }
