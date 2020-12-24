@@ -127,10 +127,12 @@ impl Map {
                 //render a tile depending on the tile type
 
                 if self.revealed_tiles[idx] {
-                    let (color, character) = match tile {
+                    let (visible_color, character) = match tile {
                         TileType::Floor => (RGB::from_f32(0.5, 0.5, 0.5), '.'),
                         TileType::Wall => (RGB::from_f32(0.0, 1.0, 0.0), '#'),
                     };
+
+                    let color = if self.visible_tiles[idx] { visible_color } else { visible_color.to_greyscale() };
 
                     ctx.set(
                         x,
