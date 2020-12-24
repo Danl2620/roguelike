@@ -1,7 +1,7 @@
-use super::Viewshed;
-use rltk::{Algorithm2D, BaseMap, Console, Point, RandomNumberGenerator, Rltk, RGB};
-use specs::prelude::*;
+use rltk::{ RGB, Rltk, RandomNumberGenerator, BaseMap, Algorithm2D, Point };
+use super::{Rect, Viewshed};
 use std::cmp::{max, min};
+use specs::prelude::*;
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(PartialEq, Copy, Clone)]
@@ -11,40 +11,14 @@ pub enum TileType {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-pub struct Rect {
-    pub x1: i32,
-    pub x2: i32,
-    pub y1: i32,
-    pub y2: i32,
-}
-
-// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Default)]
 pub struct Map {
     pub tiles: Vec<TileType>,
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
     pub revealed_tiles: Vec<bool>,
-}
-
-// ------------------------------------------------------------------------------------------------------------------ //
-impl Rect {
-    pub fn new(x: i32, y: i32, w: i32, h: i32) -> Rect {
-        Rect {
-            x1: x,
-            y1: y,
-            x2: x + w,
-            y2: y + h,
-        }
-    }
-
-    pub fn intersect(&self, other: &Rect) -> bool {
-        self.x1 <= other.x2 && self.x2 >= other.x1 && self.y1 <= other.y2 && self.y2 >= other.y1
-    }
-
-    pub fn center(&self) -> (i32, i32) {
-        ((self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2)
-    }
+    pub visible_tiles: Vec<bool>
 }
 
 impl Map {
@@ -94,6 +68,7 @@ impl Map {
             width: sx,
             height: sy,
             revealed_tiles: vec![false; sx as usize * sy as usize],
+            visible_tiles: vec![false; sx as usize * sy as usize]
         };
 
         const MAX_ROOMS: i32 = 30;
@@ -145,7 +120,7 @@ impl Map {
         //let mut players = ecs.write_storage::<Player>();
         //let map = ecs.fetch::<Map>();
 
-        for viewshed in (&mut viewsheds).join() {
+        for _viewshed in (&mut viewsheds).join() {
             let mut y = 0;
             let mut x = 0;
             for (idx, tile) in self.tiles.iter().enumerate() {
