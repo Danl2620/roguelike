@@ -1,4 +1,4 @@
-use rltk::{GameState, Rltk, RGB};
+use rltk::{GameState, Rltk, RGB, Point};
 use specs::prelude::*;
 mod components;
 pub use components::*;
@@ -10,11 +10,14 @@ mod rect;
 pub use rect::Rect;
 mod visibility_system;
 use visibility_system::VisibilitySystem;
+mod behavior;
+use behavior::MonsterAI;
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub struct State {
     pub size: (i32, i32),
     pub ecs: World,
+    pub runstate : RunState
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -22,6 +25,8 @@ impl State {
     fn run_systems(&mut self) {
         let mut vis = VisibilitySystem {};
         vis.run_now(&self.ecs);
+        let mut mob = MonsterAI{};
+        mob.run_now(&self.ecs);
         self.ecs.maintain();
     }
 }
@@ -32,8 +37,12 @@ impl GameState for State {
         ctx.cls();
         ctx.print(1, 1, "Hello Rust World");
 
-        player_input(self, ctx);
-        self.run_systems();
+        if self.runstate == RunState::Running {
+            self.run_systems();
+            self.runstate = RunState::Paused;
+        } else {
+            self.runstate = player_input(self, ctx);
+        }
 
         let map = self.ecs.fetch::<Map>();
         map.draw_map(&self.ecs, ctx);
@@ -41,7 +50,10 @@ impl GameState for State {
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
         for (pos, render) in (&positions, &renderables).join() {
-            ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
+            let idx = map.xy_idx(pos.x, pos.y);
+            if map.visible_tiles[idx] {
+                ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
+            }
         }
     }
 }
@@ -56,15 +68,42 @@ fn main() -> rltk::BError {
     let mut gs = State {
         size: (80, 50),
         ecs: World::new(),
+        runstate: RunState::Running
     };
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Viewshed>();
+    gs.ecs.register::<Name>();
     gs.ecs.register::<Player>();
+    gs.ecs.register::<Monster>();
 
     //gs.ecs.insert(new_map(&gs));
     let map = Map::new_map_rooms_and_corridors(gs.size.0, gs.size.1);
     let (px, py) = map.rooms[0].center();
+
+    let mut rng = rltk::RandomNumberGenerator::new();
+    for (i,room) in map.rooms.iter().skip(1).enumerate() {
+        let (x,y) = room.center();
+
+        let roll = rng.roll_dice(1,2);
+        let (c,name) = match roll {
+            1 => { ('g', "Goblin".to_string()) }
+            _ => { ('o', "Orc".to_string()) }
+        };
+        let glyph: rltk::FontCharType = rltk::to_cp437(c);
+
+        gs.ecs.create_entity()
+            .with(Position{x,y})
+            .with(Renderable{
+                glyph: glyph,
+                fg: RGB::named(rltk::RED),
+                bg: RGB::named(rltk::BLACK),
+            })
+            .with(Viewshed{ visible_tiles: Vec::new(), range: 8, dirty: true})
+            .with(Monster{})
+            .with(Name{ name: format!("{} #{}", &name, i) })
+            .build();
+    }
 
     gs.ecs.insert(map);
 
@@ -78,25 +117,14 @@ fn main() -> rltk::BError {
             bg: RGB::named(rltk::BLACK),
         })
         .with(Player {})
+        .with(Name{ name: "Player".to_string() })
         .with(Viewshed {
             visible_tiles: Vec::new(),
             range: 8,
             dirty: true
         })
         .build();
-
-    // for i in 0..10 {
-    //     gs.ecs
-    //         .create_entity()
-    //         .with(Position { x: i * 7, y: 20 })
-    //         .with(Renderable {
-    //             glyph: rltk::to_cp437('☺'),
-    //             fg: RGB::named(rltk::RED),
-    //             bg: RGB::named(rltk::BLACK),
-    //         })
-    //         .with(LeftMover {})
-    //         .build();
-    // }
+    gs.ecs.insert(Point::new(px,py));
 
     rltk::main_loop(context, gs)
 }

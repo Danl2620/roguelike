@@ -1,7 +1,7 @@
-use rltk::{VirtualKeyCode, Rltk};
+use rltk::{VirtualKeyCode,Rltk,Point};
 use specs::prelude::*;
 use std::cmp::{max,min};
-use super::{Position,Player,Viewshed,TileType,State,Map};
+use super::{Position,Player,Viewshed,TileType,State,Map,RunState};
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
@@ -14,6 +14,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, gs: &State) {
     let mut positions = ecs.write_storage::<Position>();
     let mut players = ecs.write_storage::<Player>();
     let mut viewsheds = ecs.write_storage::<Viewshed>();
+    let mut playerposition = ecs.write_resource::<Point>();
     let map = ecs.fetch::<Map>();
 
     for (_player, pos, viewshed) in
@@ -26,25 +27,28 @@ fn try_move_player(delta_x: i32, delta_y: i32, gs: &State) {
         if map.tiles[destination_idx] == TileType::Floor {
             pos.x = nx;
             pos.y = ny;
+            playerposition.x = pos.x;
+            playerposition.y = pos.y;
             viewshed.dirty = true;
         }
     }
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
+pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
     // player movement
     match ctx.key {
-        None => {}
         Some(key) => {
-            let (dx, dy) = match key {
-                VirtualKeyCode::Left => (-1, 0),
-                VirtualKeyCode::Right => (1, 0),
-                VirtualKeyCode::Up => (0, -1),
-                VirtualKeyCode::Down => (0, 1),
-                _ => (0, 0),
+            let (dx, dy, rs) = match key {
+                VirtualKeyCode::Left => (-1, 0, RunState::Running),
+                VirtualKeyCode::Right => (1, 0, RunState::Running),
+                VirtualKeyCode::Up => (0, -1, RunState::Running),
+                VirtualKeyCode::Down => (0, 1, RunState::Running),
+                _ => (0, 0, RunState::Paused),
             };
             try_move_player(dx, dy, gs);
+            return rs;
         }
+        _ => { return RunState::Paused }
     }
 }
