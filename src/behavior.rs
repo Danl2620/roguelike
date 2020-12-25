@@ -1,23 +1,40 @@
 use specs::prelude::*;
-use super::{Viewshed,Monster,Name};
+use super::{Viewshed,Map,Monster,Name,Position};
 //use rltk::{field_of_view,Point,console};
 use rltk::{console,Point};
 
 pub struct MonsterAI {}
 
 impl<'a> System<'a> for MonsterAI {
-    type SystemData = ( ReadExpect<'a, Point>, 
-                        ReadStorage<'a, Viewshed>,
+    #[allow(clippy::type_complexity)]
+    type SystemData = ( WriteExpect<'a, Map>,
+                        ReadExpect<'a, Point>,
+                        WriteStorage<'a, Viewshed>,
                         ReadStorage<'a, Monster>,
-                        ReadStorage<'a, Name>
+                        ReadStorage<'a, Name>,
+                        WriteStorage<'a, Position>
                         );
-    
-    fn run(&mut self, data: Self::SystemData) {
-        let (player_pos, viewsheds, monsters, name) = data;
 
-        for (viewshed,_monster,name) in (&viewsheds, &monsters, &name).join() {
+    fn run(&mut self, data: Self::SystemData) {
+        let (mut map, player_pos, mut viewsheds, monsters, names, mut positions) = data;
+
+        for (mut viewshed, _monster, name, mut position) in 
+            (&mut viewsheds, &monsters, &names, &mut positions).join() {
+
             if viewshed.visible_tiles.contains(&*player_pos) {
-                console::log(&format!("{} shouts insults", name.name));
+                let path = rltk::a_star_search(
+                    map.xy_idx(position.x,position.y) as i32,
+                    map.xy_idx(player_pos.x, player_pos.y) as i32,
+                    &mut *map
+                );
+                if path.success && path.steps.len()>1 {
+                    position.x = path.steps[1] as i32 % map.width;
+                    position.y = path.steps[1] as i32 / map.width;
+                    viewshed.dirty = true;
+                    console::log(&format!("{} runs towards you", name.name));
+                } else {
+                    console::log(&format!("{} shouts insults", name.name));
+                }
             }
         }
     }

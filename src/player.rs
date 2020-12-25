@@ -1,12 +1,6 @@
 use rltk::{VirtualKeyCode,Rltk,Point};
 use specs::prelude::*;
-use std::cmp::{max,min};
-use super::{Position,Player,Viewshed,TileType,State,Map,RunState};
-
-// ------------------------------------------------------------------------------------------------------------------ //
-pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
-    min(u, max(v, l))
-}
+use super::{Position,Player,Viewshed,TileType,State,Map,RunState,range};
 
 // ------------------------------------------------------------------------------------------------------------------ //
 fn try_move_player(delta_x: i32, delta_y: i32, gs: &State) {
