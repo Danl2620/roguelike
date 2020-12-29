@@ -19,7 +19,8 @@ pub struct Map {
     pub height: i32,
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
-    pub blocked: Vec<bool>
+    pub blocked: Vec<bool>,
+    pub tile_content: Vec<Vec<Entity>>
 }
 
 impl Map {
@@ -44,6 +45,13 @@ impl Map {
     pub fn populate_blocked(&mut self) {
         for (i,tile) in self.tiles.iter_mut().enumerate() {
             self.blocked[i] = *tile == TileType::Wall;
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------ //
+    pub fn clear_content_index(&mut self) {
+        for content in self.tile_content.iter_mut() {
+            content.clear();
         }
     }
 
@@ -81,15 +89,17 @@ impl Map {
     pub fn new_map_rooms_and_corridors(size_x: i32, size_y: i32) -> Map {
         let sx = size_x;
         let sy = size_y;
+        let vec_size = (sx * sy) as usize;
 
         let mut map = Map {
             tiles: vec![TileType::Wall; (sx * sy) as usize],
             rooms: Vec::new(),
             width: sx,
             height: sy,
-            revealed_tiles: vec![false; sx as usize * sy as usize],
-            visible_tiles: vec![false; sx as usize * sy as usize],
-            blocked: vec![false; sx as usize * sy as usize]
+            revealed_tiles: vec![false; vec_size],
+            visible_tiles: vec![false; vec_size],
+            blocked: vec![false; vec_size],
+            tile_content: vec![Vec::new(); vec_size]
         };
 
         const MAX_ROOMS: i32 = 30;
@@ -164,22 +174,6 @@ impl Map {
                     );
                 }
 
-                // let pt = Point::new(x, y);
-                // if viewshed.visible_tiles.contains(&pt) {
-                //     let (color, character) = match tile {
-                //         TileType::Floor => (RGB::from_f32(0.5, 0.5, 0.5), '.'),
-                //         TileType::Wall => (RGB::from_f32(0.0, 1.0, 0.0), '#'),
-                //     };
-
-                //     ctx.set(
-                //         x,
-                //         y,
-                //         color,
-                //         RGB::from_f32(0., 0., 0.),
-                //         rltk::to_cp437(character),
-                //     );
-                // }
-
                 x += 1;
                 if x > 79 {
                     x = 0;
@@ -188,37 +182,6 @@ impl Map {
             }
         }
     }
-
-    // ------------------------------------------------------------------------------------------------------------------ //
-    // Make a map with solid boundaries and 400 randomly placed walls
-    // fn new_map(&self, gs: &State) -> Vec<TileType> {
-    //     let sx = gs.size.0;
-    //     let sy = gs.size.1;
-    //     let mut map = vec![TileType::Floor; (sx * sy) as usize];
-
-    //     for x in 0..sx {
-    //         map[self.xy_idx(x, 0)] = TileType::Wall;
-    //         map[self.xy_idx(x, sy - 1)] = TileType::Wall;
-    //     }
-
-    //     for y in 0..sy {
-    //         map[self.xy_idx(0, y)] = TileType::Wall;
-    //         map[self.xy_idx(sx - 1, y)] = TileType::Wall;
-    //     }
-
-    //     let mut rng = rltk::RandomNumberGenerator::new();
-
-    //     for _i in 0..400 {
-    //         let x = rng.roll_dice(1, sx - 1);
-    //         let y = rng.roll_dice(1, sy - 1);
-    //         let idx = self.xy_idx(x, y);
-    //         if idx != self.xy_idx(40, 25) {
-    //             map[idx] = TileType::Wall;
-    //         }
-    //     }
-
-    //     map
-    // }
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -236,22 +199,33 @@ impl BaseMap for Map {
 
     // ------------------------------------------------------------------------------------------------------------------ //
     fn get_available_exits(&self, idx:usize) -> rltk::SmallVec<[(usize, f32); 10]> {
-        let mut exits = rltk::SmallVec::new();
         let x = idx as i32 % self.width;
         let y = idx as i32 / self.width;
-        let w = self.width as usize;
+        let w = self.width;
 
-        let directions = [Position{x:x-1,y:y},Position{x:x+1,y}];
+        let directions = [
+            // cardinal directions
+            (-1,  0, -1, 1.0),
+            ( 1,  0,  1, 1.0),
+            ( 0, -1, -w, 1.0),
+            ( 0,  1,  w, 1.0),
 
-        let exitsa = directions.iter().filter(|p| self.is_exit_valid(p.x,p.y));
+            // diagonals
+            (-1, -1,-1-w, 1.45),
+            ( 1, -1, 1-w, 1.45),
+            (-1,  1,-1+w, 1.45),
+            ( 1,  1, 1+w, 1.45)
+        ];
 
-        // Cardinal directions
-        if self.is_exit_valid(x-1, y) { exits.push((idx-1, 1.0)) };
-        if self.is_exit_valid(x+1, y) { exits.push((idx+1, 1.0)) };
-        if self.is_exit_valid(x, y-1) { exits.push((idx-w, 1.0)) };
-        if self.is_exit_valid(x, y+1) { exits.push((idx+w, 1.0)) };
+        let valid_dirs = directions.iter().filter(|p| {
+            let (dx,dy,_,_) = p;
+            self.is_exit_valid(x + dx, y + dy)
+        });
 
-        exits
+        valid_dirs.map(|d| {
+            let (_,_,d_index,weight) = d;
+            ((idx as i32 + d_index) as usize, *weight as f32)
+        }).collect()
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //

@@ -12,6 +12,10 @@ mod visibility_system;
 use visibility_system::VisibilitySystem;
 mod behavior;
 use behavior::MonsterAI;
+mod melee_combat_system;
+use melee_combat_system::MeleeCombatSystem;
+mod damage_system;
+use damage_system::DamageSystem;
 mod map_indexing_system;
 use map_indexing_system::MapIndexingSystem;
 
@@ -31,6 +35,11 @@ impl State {
         mob.run_now(&self.ecs);
         let mut mapindex = MapIndexingSystem{};
         mapindex.run_now(&self.ecs);
+        let mut combat = MeleeCombatSystem{};
+        combat.run_now(&self.ecs);
+        let mut damage = DamageSystem{};
+        damage.run_now(&self.ecs);
+        damage_system::delete_the_dead(&mut self.ecs);
         self.ecs.maintain();
     }
 }
@@ -75,12 +84,15 @@ fn main() -> rltk::BError {
         runstate: RunState::Running
     };
     gs.ecs.register::<Position>();
+    gs.ecs.register::<CombatStats>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Viewshed>();
     gs.ecs.register::<Name>();
     gs.ecs.register::<BlocksTile>();
     gs.ecs.register::<Player>();
     gs.ecs.register::<Monster>();
+    gs.ecs.register::<WantsToMelee>();
+    gs.ecs.register::<SufferDamage>();
 
     //gs.ecs.insert(new_map(&gs));
     let map = Map::new_map_rooms_and_corridors(gs.size.0, gs.size.1);
@@ -97,6 +109,7 @@ fn main() -> rltk::BError {
         };
         let glyph: rltk::FontCharType = rltk::to_cp437(c);
 
+        // create a room monster per room
         gs.ecs.create_entity()
             .with(Position{x,y})
             .with(Renderable{
@@ -106,6 +119,7 @@ fn main() -> rltk::BError {
             })
             .with(Viewshed{ visible_tiles: Vec::new(), range: 8, dirty: true})
             .with(Monster{})
+            .with(CombatStats{max_hp:16, hp: 16, defense: 1, power: 4})
             .with(Name{ name: format!("{} #{}", &name, i) })
             .with(BlocksTile{})
             .build();
@@ -123,6 +137,7 @@ fn main() -> rltk::BError {
             bg: RGB::named(rltk::BLACK),
         })
         .with(Player {})
+        .with(CombatStats {max_hp: 30, hp: 30, defense: 2, power: 5})
         .with(Name{ name: "Player".to_string() })
         .with(Viewshed {
             visible_tiles: Vec::new(),

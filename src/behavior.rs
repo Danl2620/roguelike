@@ -22,24 +22,23 @@ impl<'a> System<'a> for MonsterAI {
         for (mut viewshed, _monster, name, mut position) in
             (&mut viewsheds, &monsters, &names, &mut positions).join()
         {
-            if viewshed.visible_tiles.contains(&*player_pos) {
+            if rltk::DistanceAlg::Pythagoras
+                    .distance2d(Point::new(position.x, position.y), *player_pos)
+                    < 1.5
+            {
+                console::log(&format!("{} shouts insults", name.name));
+            }
+            else if viewshed.visible_tiles.contains(&*player_pos) {
                 let path = rltk::a_star_search(
                     map.xy_idx(position.x, position.y) as i32,
                     map.xy_idx(player_pos.x, player_pos.y) as i32,
                     &mut *map,
                 );
-                if path.success {
-                    if path.steps.len() > 1 {
-                        position.x = path.steps[1] as i32 % map.width;
-                        position.y = path.steps[1] as i32 / map.width;
-                        viewshed.dirty = true;
-                        console::log(&format!("{} runs towards you", name.name));
-                    }
-                } else if rltk::DistanceAlg::Pythagoras
-                    .distance2d(Point::new(position.x, position.y), *player_pos)
-                    < 1.5
-                {
-                    console::log(&format!("{} shouts insults", name.name));
+                if path.success && path.steps.len() > 1 {
+                    position.x = path.steps[1] as i32 % map.width;
+                    position.y = path.steps[1] as i32 / map.width;
+                    viewshed.dirty = true;
+                    console::log(&format!("{} runs towards you", name.name));
                 }
             }
         }
