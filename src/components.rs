@@ -9,7 +9,7 @@ pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 pub struct Position {
     pub x: i32,
     pub y: i32
@@ -36,6 +36,10 @@ pub struct Viewshed {
 pub struct Name {
     pub name : String
 }
+
+// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component, Debug)]
+pub struct BlocksTile {}
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug)]

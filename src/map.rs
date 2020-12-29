@@ -1,5 +1,5 @@
 use rltk::{ RGB, Rltk, RandomNumberGenerator, BaseMap, Algorithm2D, Point };
-use super::{Rect, Viewshed};
+use super::{Rect, Viewshed, Position};
 use std::cmp::{max, min};
 use specs::prelude::*;
 
@@ -18,7 +18,8 @@ pub struct Map {
     pub width: i32,
     pub height: i32,
     pub revealed_tiles: Vec<bool>,
-    pub visible_tiles: Vec<bool>
+    pub visible_tiles: Vec<bool>,
+    pub blocked: Vec<bool>
 }
 
 impl Map {
@@ -28,10 +29,22 @@ impl Map {
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
+    pub fn position_idx(&self, p:Position) -> usize {
+        self.xy_idx(p.x,p.y)
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------ //
     fn is_exit_valid(&self, x:i32, y:i32) -> bool {
         if x < 1 || x > self.width-1 || y < 1 || y > self.height-1 { return false; }
         let idx = self.xy_idx(x,y);
-        self.tiles[idx as usize] != TileType::Wall
+        !self.blocked[idx]
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------ //
+    pub fn populate_blocked(&mut self) {
+        for (i,tile) in self.tiles.iter_mut().enumerate() {
+            self.blocked[i] = *tile == TileType::Wall;
+        }
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
@@ -75,7 +88,8 @@ impl Map {
             width: sx,
             height: sy,
             revealed_tiles: vec![false; sx as usize * sy as usize],
-            visible_tiles: vec![false; sx as usize * sy as usize]
+            visible_tiles: vec![false; sx as usize * sy as usize],
+            blocked: vec![false; sx as usize * sy as usize]
         };
 
         const MAX_ROOMS: i32 = 30;
@@ -227,6 +241,10 @@ impl BaseMap for Map {
         let y = idx as i32 / self.width;
         let w = self.width as usize;
 
+        let directions = [Position{x:x-1,y:y},Position{x:x+1,y}];
+
+        let exitsa = directions.iter().filter(|p| self.is_exit_valid(p.x,p.y));
+
         // Cardinal directions
         if self.is_exit_valid(x-1, y) { exits.push((idx-1, 1.0)) };
         if self.is_exit_valid(x+1, y) { exits.push((idx+1, 1.0)) };
@@ -236,6 +254,7 @@ impl BaseMap for Map {
         exits
     }
 
+    // ------------------------------------------------------------------------------------------------------------------ //
     fn get_pathing_distance(&self, idx1:usize, idx2:usize) -> f32 {
         let w = self.width as usize;
         let p1 = Point::new(idx1 % w, idx1 / w);

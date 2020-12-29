@@ -1,6 +1,6 @@
 use rltk::{VirtualKeyCode,Rltk,Point};
 use specs::prelude::*;
-use super::{Position,Player,Viewshed,TileType,State,Map,RunState,range};
+use super::{Position,Player,Viewshed,State,Map,RunState,range};
 
 // ------------------------------------------------------------------------------------------------------------------ //
 fn try_move_player(delta_x: i32, delta_y: i32, gs: &State) {
@@ -18,7 +18,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, gs: &State) {
             range(0, pos.y + delta_y, gs.size.1 - 1),
         );
         let destination_idx = map.xy_idx(nx, ny);
-        if map.tiles[destination_idx] == TileType::Floor {
+        if !map.blocked[destination_idx] {
             pos.x = nx;
             pos.y = ny;
             playerposition.x = pos.x;
