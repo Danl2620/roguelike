@@ -83,4 +83,4 @@ pub struct Monster {}
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(PartialEq, Copy, Clone)]
-pub enum RunState { Paused, Running }
+pub enum RunState { AwaitingInput, PreRun, PlayerTurn, MonsterTurn }

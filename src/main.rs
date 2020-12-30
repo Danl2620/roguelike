@@ -23,7 +23,6 @@ use map_indexing_system::MapIndexingSystem;
 pub struct State {
     pub size: (i32, i32),
     pub ecs: World,
-    pub runstate : RunState
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -48,20 +47,46 @@ impl State {
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
-        ctx.print(1, 1, "Hello Rust World");
+        ctx.print(1, 1, "Hello Rust Roguelike!");
 
-        if self.runstate == RunState::Running {
-            self.run_systems();
-            self.runstate = RunState::Paused;
-        } else {
-            self.runstate = player_input(self, ctx);
+        let mut newrunstate;
+        {
+            let runstate = self.ecs.fetch::<RunState>();
+            newrunstate = *runstate;
         }
+
+        newrunstate = 
+            match newrunstate {
+                RunState::PreRun => {
+                    self.run_systems();
+                    RunState::AwaitingInput
+                }
+                RunState::AwaitingInput => {
+                    player_input(self, ctx)
+                }
+                RunState::PlayerTurn => {
+                    self.run_systems();
+                    RunState::MonsterTurn
+                }
+                RunState::MonsterTurn => {
+                    self.run_systems();
+                    RunState::AwaitingInput
+                }
+            };
+
+        {
+            let mut runwriter = self.ecs.write_resource::<RunState>();
+            *runwriter = newrunstate
+        }
+
+        damage_system::delete_the_dead(&mut self.ecs);
 
         let map = self.ecs.fetch::<Map>();
         map.draw_map(&self.ecs, ctx);
 
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
+
         for (pos, render) in (&positions, &renderables).join() {
             let idx = map.xy_idx(pos.x, pos.y);
             if map.visible_tiles[idx] {
@@ -81,7 +106,6 @@ fn main() -> rltk::BError {
     let mut gs = State {
         size: (80, 50),
         ecs: World::new(),
-        runstate: RunState::Running
     };
     gs.ecs.register::<Position>();
     gs.ecs.register::<CombatStats>();
@@ -128,7 +152,7 @@ fn main() -> rltk::BError {
     gs.ecs.insert(map);
 
     // create the player!
-    gs.ecs
+    let player_entity = gs.ecs
         .create_entity()
         .with(Position { x: px, y: py })
         .with(Renderable {
@@ -145,7 +169,10 @@ fn main() -> rltk::BError {
             dirty: true
         })
         .build();
-    gs.ecs.insert(Point::new(px,py));
+
+    gs.ecs.insert(Point::new(px, py));
+    gs.ecs.insert(player_entity);
+    gs.ecs.insert(RunState::PreRun);
 
     rltk::main_loop(context, gs)
 }

@@ -1,7 +1,7 @@
-use super::{Map, Monster, Name, Position, Viewshed};
+use super::{Map, Monster, Position, Viewshed, RunState, WantsToMelee};
 use specs::prelude::*;
 //use rltk::{field_of_view,Point,console};
-use rltk::{console, Point};
+use rltk::{Point};
 
 pub struct MonsterAI {}
 
@@ -10,23 +10,38 @@ impl<'a> System<'a> for MonsterAI {
     type SystemData = (
         WriteExpect<'a, Map>,
         ReadExpect<'a, Point>,
+        ReadExpect<'a, Entity>,
+        ReadExpect<'a, RunState>,
+        Entities<'a>,
         WriteStorage<'a, Viewshed>,
         ReadStorage<'a, Monster>,
-        ReadStorage<'a, Name>,
         WriteStorage<'a, Position>,
+        WriteStorage<'a, WantsToMelee>,
+        // ReadStorage<'a, Name>
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut map, player_pos, mut viewsheds, monsters, names, mut positions) = data;
+        let (mut map,
+            player_pos,
+            player_entity,
+            runstate,
+            entities,
+            mut viewsheds,
+            monsters,
+            mut positions,
+            mut wants_to_melee) = data;
 
-        for (mut viewshed, _monster, name, mut position) in
-            (&mut viewsheds, &monsters, &names, &mut positions).join()
+        for (entity, mut viewshed, _monster, mut position) in
+            (&entities, &mut viewsheds, &monsters, &mut positions).join()
         {
+            if *runstate != RunState::MonsterTurn { return; }
+
             if rltk::DistanceAlg::Pythagoras
                     .distance2d(Point::new(position.x, position.y), *player_pos)
                     < 1.5
             {
-                console::log(&format!("{} shouts insults", name.name));
+                //console::log(&format!("{} shouts insults", name.name));
+                wants_to_melee.insert(entity, WantsToMelee{ target: *player_entity }).expect("unable to insert attack");
             }
             else if viewshed.visible_tiles.contains(&*player_pos) {
                 let path = rltk::a_star_search(
@@ -38,7 +53,7 @@ impl<'a> System<'a> for MonsterAI {
                     position.x = path.steps[1] as i32 % map.width;
                     position.y = path.steps[1] as i32 / map.width;
                     viewshed.dirty = true;
-                    console::log(&format!("{} runs towards you", name.name));
+                    //console::log(&format!("{} runs towards you", name.name));
                 }
             }
         }
