@@ -8,6 +8,8 @@ mod player;
 use player::*;
 mod rect;
 pub use rect::Rect;
+mod viewport;
+pub use viewport::Viewport;
 mod visibility_system;
 use visibility_system::VisibilitySystem;
 mod behavior;
@@ -18,10 +20,13 @@ mod damage_system;
 use damage_system::DamageSystem;
 mod map_indexing_system;
 use map_indexing_system::MapIndexingSystem;
+mod gui;
+mod gamelog;
+pub use gamelog::GameLog;
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub struct State {
-    pub size: (i32, i32),
+    pub viewport: Viewport,
     pub ecs: World,
 }
 
@@ -93,6 +98,8 @@ impl GameState for State {
                 ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
             }
         }
+
+        gui::draw_ui(&self.ecs, ctx, &self.viewport);
     }
 }
 
@@ -100,26 +107,23 @@ impl GameState for State {
 // ------------------------------------------------------------------------------------------------------------------ //
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
-    let context = RltkBuilder::simple80x50()
-        .with_title("Roguelike Tutorial")
-        .build()?;
-    let mut gs = State {
-        size: (80, 50),
-        ecs: World::new(),
-    };
-    gs.ecs.register::<Position>();
-    gs.ecs.register::<CombatStats>();
-    gs.ecs.register::<Renderable>();
-    gs.ecs.register::<Viewshed>();
-    gs.ecs.register::<Name>();
-    gs.ecs.register::<BlocksTile>();
-    gs.ecs.register::<Player>();
-    gs.ecs.register::<Monster>();
-    gs.ecs.register::<WantsToMelee>();
-    gs.ecs.register::<SufferDamage>();
 
-    //gs.ecs.insert(new_map(&gs));
-    let map = Map::new_map_rooms_and_corridors(gs.size.0, gs.size.1);
+    // create world
+    let mut world = World::new();
+    world.register::<Position>();
+    world.register::<CombatStats>();
+    world.register::<Renderable>();
+    world.register::<Viewshed>();
+    world.register::<Name>();
+    world.register::<BlocksTile>();
+    world.register::<Player>();
+    world.register::<Monster>();
+    world.register::<WantsToMelee>();
+    world.register::<SufferDamage>();
+
+    //world.insert(new_map(&gs));
+    let viewport = Viewport { map_width: 80, map_height: 43, log_height: 7 };
+    let map = Map::new_map_rooms_and_corridors(&viewport);
     let (px, py) = map.rooms[0].center();
 
     let mut rng = rltk::RandomNumberGenerator::new();
@@ -134,7 +138,7 @@ fn main() -> rltk::BError {
         let glyph: rltk::FontCharType = rltk::to_cp437(c);
 
         // create a room monster per room
-        gs.ecs.create_entity()
+        world.create_entity()
             .with(Position{x,y})
             .with(Renderable{
                 glyph: glyph,
@@ -149,10 +153,10 @@ fn main() -> rltk::BError {
             .build();
     }
 
-    gs.ecs.insert(map);
+    world.insert(map);
 
     // create the player!
-    let player_entity = gs.ecs
+    let player_entity = world
         .create_entity()
         .with(Position { x: px, y: py })
         .with(Renderable {
@@ -170,9 +174,21 @@ fn main() -> rltk::BError {
         })
         .build();
 
-    gs.ecs.insert(Point::new(px, py));
-    gs.ecs.insert(player_entity);
-    gs.ecs.insert(RunState::PreRun);
+    world.insert(Point::new(px, py));
+    world.insert(player_entity);
+    world.insert(RunState::PreRun);
+    world.insert(gamelog::GameLog{ entries : vec!["Welcome to Rusty Roguelike".to_string()] });
 
+    // create game state
+    let gs = State {
+        viewport: viewport,
+        ecs: world,
+    };
+
+    // start app
+    let mut context = RltkBuilder::simple80x50()
+        .with_title("Roguelike Tutorial")
+        .build()?;
+    context.with_post_scanlines(true);
     rltk::main_loop(context, gs)
 }

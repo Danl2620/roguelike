@@ -1,5 +1,5 @@
 use rltk::{ RGB, Rltk, RandomNumberGenerator, BaseMap, Algorithm2D, Point };
-use super::{Rect, Viewshed, Position};
+use super::{Rect, Viewshed, Position, Viewport};
 use std::cmp::{max, min};
 use specs::prelude::*;
 
@@ -86,9 +86,9 @@ impl Map {
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    pub fn new_map_rooms_and_corridors(size_x: i32, size_y: i32) -> Map {
-        let sx = size_x;
-        let sy = size_y;
+    pub fn new_map_rooms_and_corridors(viewport: &Viewport) -> Map {
+        let sx = viewport.map_width;
+        let sy = viewport.map_height;
         let vec_size = (sx * sy) as usize;
 
         let mut map = Map {
@@ -113,8 +113,8 @@ impl Map {
                 rng.range(SIZE_RANGE.0, SIZE_RANGE.1),
             );
             let (x, y) = (
-                rng.roll_dice(1, sx - w - 1) - 1,
-                rng.roll_dice(1, sy - h - 1) - 1,
+                rng.roll_dice(1, sx - w - 2),
+                rng.roll_dice(1, sy - h - 2),
             );
             let new_room = Rect::new(x, y, w, h);
             let mut ok = true;
