@@ -1,7 +1,8 @@
 use specs::prelude::*;
 use specs_derive::*;
-use std::cmp::{max,min};
-use rltk::{RGB};
+use std::cmp::{max,min,Ordering};
+use std::ops::{Add, Sub};
+use rltk::{RGB,Point};
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
@@ -9,10 +10,46 @@ pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-#[derive(Component, Copy, Clone)]
+#[derive(Default, Component, Copy, Clone, PartialEq, PartialOrd)]
 pub struct Position {
     pub x: i32,
     pub y: i32
+}
+
+pub fn manhattan_dist(p: &Position, q: &Position) -> i32 {
+    (q.x - p.x) + (q.y - q.x)
+}
+
+impl Position {
+    pub fn new(p: &Point) -> Position {
+        Position { x: p.x, y: p.y }
+    }
+}
+
+impl Add for Position {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {x: self.x + other.x, y: self.y + other.y}
+    }
+}
+
+impl Sub for Position {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {x: self.x - other.x, y: self.y - other.y}
+    }
+}
+
+impl Eq for Position {}
+impl Ord for Position {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let origin = Position { x: 0, y: 0};
+        manhattan_dist(&origin, self)
+            .partial_cmp(&manhattan_dist(&origin, other))
+            .unwrap_or(Ordering::Equal)
+    }
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -80,6 +117,16 @@ pub struct Player {}
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug)]
 pub struct Monster {}
+
+// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component, Debug)]
+pub struct Item {}
+
+// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component, Debug)]
+pub struct Potion {
+    pub heal_amount: i32
+}
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(PartialEq, Copy, Clone)]

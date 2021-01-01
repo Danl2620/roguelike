@@ -1,3 +1,4 @@
+//mod viewport;
 
 pub struct Viewport {
     pub map_width: i32,

@@ -1,9 +1,9 @@
-use rltk::{GameState, Rltk, RGB, Point};
+use rltk::{GameState, Rltk, Point};
 use specs::prelude::*;
 mod components;
-pub use components::*;
+use components::*;
 mod map;
-pub use map::*;
+use map::*;
 mod player;
 use player::*;
 mod rect;
@@ -23,6 +23,9 @@ use map_indexing_system::MapIndexingSystem;
 mod gui;
 mod gamelog;
 pub use gamelog::GameLog;
+mod spawner;
+
+
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub struct State {
@@ -60,7 +63,7 @@ impl GameState for State {
             newrunstate = *runstate;
         }
 
-        newrunstate = 
+        newrunstate =
             match newrunstate {
                 RunState::PreRun => {
                     self.run_systems();
@@ -120,59 +123,38 @@ fn main() -> rltk::BError {
     world.register::<Monster>();
     world.register::<WantsToMelee>();
     world.register::<SufferDamage>();
+    world.register::<Item>();
+    world.register::<Potion>();
 
     //world.insert(new_map(&gs));
     let viewport = Viewport { map_width: 80, map_height: 43, log_height: 7 };
-    let map = Map::new_map_rooms_and_corridors(&viewport);
+    let mut rng = rltk::RandomNumberGenerator::seeded(1);
+    let map = Map::new_map_rooms_and_corridors(&mut world, &viewport, &mut rng);
     let (px, py) = map.rooms[0].center();
 
-    let mut rng = rltk::RandomNumberGenerator::new();
-    for (i,room) in map.rooms.iter().skip(1).enumerate() {
-        let (x,y) = room.center();
+    // for room in map.rooms.iter().skip(1) {
+    //     let (x,y) = room.center();
 
-        let roll = rng.roll_dice(1,2);
-        let (c,name) = match roll {
-            1 => { ('g', "Goblin".to_string()) }
-            _ => { ('o', "Orc".to_string()) }
-        };
-        let glyph: rltk::FontCharType = rltk::to_cp437(c);
+    //     let mut context = spawner::SpawnContext {
+    //         world: &mut world,
+    //         rng: &mut rng,
+    //         position: Position{x,y},
+    //     };
 
-        // create a room monster per room
-        world.create_entity()
-            .with(Position{x,y})
-            .with(Renderable{
-                glyph: glyph,
-                fg: RGB::named(rltk::RED),
-                bg: RGB::named(rltk::BLACK),
-            })
-            .with(Viewshed{ visible_tiles: Vec::new(), range: 8, dirty: true})
-            .with(Monster{})
-            .with(CombatStats{max_hp:16, hp: 16, defense: 1, power: 4})
-            .with(Name{ name: format!("{} #{}", &name, i) })
-            .with(BlocksTile{})
-            .build();
-    }
+    //     // create a room monster per room
+    //     spawner::random_monster(&mut context);
+    // }
 
     world.insert(map);
 
     // create the player!
-    let player_entity = world
-        .create_entity()
-        .with(Position { x: px, y: py })
-        .with(Renderable {
-            glyph: rltk::to_cp437('@'),
-            fg: RGB::named(rltk::YELLOW),
-            bg: RGB::named(rltk::BLACK),
-        })
-        .with(Player {})
-        .with(CombatStats {max_hp: 30, hp: 30, defense: 2, power: 5})
-        .with(Name{ name: "Player".to_string() })
-        .with(Viewshed {
-            visible_tiles: Vec::new(),
-            range: 8,
-            dirty: true
-        })
-        .build();
+    let player_entity =
+        spawner::player(
+            &mut spawner::SpawnContext {
+                world: &mut world,
+                rng: &mut rng,
+                position: Position { x: px, y: py },
+            });
 
     world.insert(Point::new(px, py));
     world.insert(player_entity);

@@ -1,4 +1,4 @@
-use rltk::{RGB, Rltk, Console};
+use rltk::{RGB, Rltk};
 use specs::prelude::*;
 use super::{Viewport,CombatStats,Player,GameLog};
 
@@ -39,12 +39,11 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk, viewport: &Viewport) {
 
     // draw log
     let log = ecs.fetch::<GameLog>();
-    let mut y = viewport.map_height + 2;
+    let y = viewport.map_height + 2;
     for (i,s) in log.entries.iter().rev().enumerate() {
         let yoff = y + (i as i32);
         if yoff < viewport.map_height + viewport.log_height - 1 {
             ctx.print(2, yoff, s);
         }
     }
-
 }

@@ -50,8 +50,9 @@ impl<'a> System<'a> for MonsterAI {
                     &mut *map,
                 );
                 if path.success && path.steps.len() > 1 {
-                    position.x = path.steps[1] as i32 % map.width;
-                    position.y = path.steps[1] as i32 / map.width;
+                    let pos = map.size.idx_position(path.steps[1]);
+                    position.x = pos.x;
+                    position.y = pos.y;
                     viewshed.dirty = true;
                     //console::log(&format!("{} runs towards you", name.name));
                 }

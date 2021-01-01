@@ -18,8 +18,8 @@ fn try_move_player(delta_x: i32, delta_y: i32, gs: &State) {
     for (entity, _player, pos, viewshed) in
         (&entities, &players, &mut positions, &mut viewsheds).join() {
         let (nx, ny) = (
-            range(0, pos.x + delta_x, gs.viewport.map_width - 1),
-            range(0, pos.y + delta_y, gs.viewport.map_height - 1),
+            range(1, pos.x + delta_x, map.size.width()-1),
+            range(1, pos.y + delta_y, map.size.height()-1),
         );
         let destination_idx = map.xy_idx(nx, ny);
 
