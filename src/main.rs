@@ -81,10 +81,20 @@ impl GameState for State {
                 (RunState::AwaitingInput, false)
             }
             RunState::ShowInventory => {
-                if gui::menu_inventory(self, ctx) == gui::ItemMenuResult::Cancel {
-                    (RunState::AwaitingInput, false)
-                } else {
-                    (newrunstate, true)
+                let result = gui::menu_inventory(self, ctx);
+
+                match result {
+                    gui::ItemMenuResult::Cancel => (RunState::AwaitingInput, false),
+                    gui::ItemMenuResult::NoResponse => (newrunstate, true),
+                    gui::ItemMenuResult::Selected(entity) => {
+                        let names = self.ecs.read_storage::<Name>();
+                        let mut gamelog = self.ecs.fetch_mut::<gamelog::GameLog>();
+                        gamelog.entries.push(format!(
+                            "You try to use {}, but that's not implemented yet!",
+                            names.get(entity).unwrap().name
+                        ));
+                        (RunState::AwaitingInput, false)
+                    }
                 }
             }
         };

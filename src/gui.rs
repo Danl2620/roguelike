@@ -127,16 +127,34 @@ pub fn draw_ui(world: &World, ctx: &mut Rltk, viewport: &Viewport, show_inventor
 pub enum ItemMenuResult {
     Cancel,
     NoResponse,
-    Selected,
+    Selected(Entity),
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-pub fn menu_inventory(_gs: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
+pub fn menu_inventory(gs: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
+    let world = &gs.ecs;
+    let player_entity = world.fetch::<Entity>();
+    let backpack = world.read_storage::<InBackpack>();
+    let entities = world.entities();
+
+    let inventory: Vec<(Entity, &InBackpack)> = (&entities, &backpack)
+        .join()
+        .filter(|item| item.1.owner == *player_entity)
+        .collect();
+    let count = inventory.len() as i32;
+
     match ctx.key {
         None => ItemMenuResult::NoResponse,
         Some(key) => match key {
             VirtualKeyCode::Escape => ItemMenuResult::Cancel,
-            _ => ItemMenuResult::NoResponse,
+            _ => {
+                let selection = rltk::letter_to_option(key);
+                if selection > -1 && selection < count {
+                    ItemMenuResult::Selected(inventory[selection as usize].0)
+                } else {
+                    ItemMenuResult::NoResponse
+                }
+            }
         },
     }
 }
