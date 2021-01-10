@@ -1,4 +1,4 @@
-use rltk::{GameState, Rltk, Point};
+use rltk::{GameState, Point, Rltk};
 use specs::prelude::*;
 mod components;
 use components::*;
@@ -20,11 +20,12 @@ mod damage_system;
 use damage_system::DamageSystem;
 mod map_indexing_system;
 use map_indexing_system::MapIndexingSystem;
-mod gui;
 mod gamelog;
 pub use gamelog::GameLog;
-mod spawner;
+mod gui;
+use gui::ItemMenuResult;
 mod inventory_system;
+mod spawner;
 use inventory_system::ItemCollectionSystem;
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -38,16 +39,16 @@ impl State {
     fn run_systems(&mut self) {
         let mut vis = VisibilitySystem {};
         vis.run_now(&self.ecs);
-        let mut mob = MonsterAI{};
+        let mut mob = MonsterAI {};
         mob.run_now(&self.ecs);
-        let mut mapindex = MapIndexingSystem{};
+        let mut mapindex = MapIndexingSystem {};
         mapindex.run_now(&self.ecs);
-        let mut combat = MeleeCombatSystem{};
+        let mut combat = MeleeCombatSystem {};
         combat.run_now(&self.ecs);
-        let mut damage = DamageSystem{};
+        let mut damage = DamageSystem {};
         damage.run_now(&self.ecs);
         damage_system::delete_the_dead(&mut self.ecs);
-        let mut pickup = ItemCollectionSystem{};
+        let mut pickup = ItemCollectionSystem {};
         pickup.run_now(&self.ecs);
         self.ecs.maintain();
     }
@@ -65,24 +66,30 @@ impl GameState for State {
             newrunstate = *runstate;
         }
 
-        newrunstate =
-            match newrunstate {
-                RunState::PreRun => {
-                    self.run_systems();
-                    RunState::AwaitingInput
+        let (rs, should_show_inventory) = match newrunstate {
+            RunState::PreRun => {
+                self.run_systems();
+                (RunState::AwaitingInput, false)
+            }
+            RunState::AwaitingInput => (player_input(self, ctx), false),
+            RunState::PlayerTurn => {
+                self.run_systems();
+                (RunState::MonsterTurn, false)
+            }
+            RunState::MonsterTurn => {
+                self.run_systems();
+                (RunState::AwaitingInput, false)
+            }
+            RunState::ShowInventory => {
+                if gui::menu_inventory(self, ctx) == gui::ItemMenuResult::Cancel {
+                    (RunState::AwaitingInput, false)
+                } else {
+                    (newrunstate, true)
                 }
-                RunState::AwaitingInput => {
-                    player_input(self, ctx)
-                }
-                RunState::PlayerTurn => {
-                    self.run_systems();
-                    RunState::MonsterTurn
-                }
-                RunState::MonsterTurn => {
-                    self.run_systems();
-                    RunState::AwaitingInput
-                }
-            };
+            }
+        };
+
+        newrunstate = rs;
 
         {
             let mut runwriter = self.ecs.write_resource::<RunState>();
@@ -104,10 +111,9 @@ impl GameState for State {
             }
         }
 
-        gui::draw_ui(&self.ecs, ctx, &self.viewport);
+        gui::draw_ui(&self.ecs, ctx, &self.viewport, should_show_inventory);
     }
 }
-
 
 // ------------------------------------------------------------------------------------------------------------------ //
 fn main() -> rltk::BError {
@@ -131,7 +137,11 @@ fn main() -> rltk::BError {
     world.register::<WantsToPickupItem>();
 
     //world.insert(new_map(&gs));
-    let viewport = Viewport { map_width: 80, map_height: 43, log_height: 7 };
+    let viewport = Viewport {
+        map_width: 80,
+        map_height: 43,
+        log_height: 7,
+    };
     let mut rng = rltk::RandomNumberGenerator::seeded(1);
     let map = Map::new_map_rooms_and_corridors(&mut world, &viewport, &mut rng);
     let (px, py) = map.rooms[0].center();
@@ -152,18 +162,18 @@ fn main() -> rltk::BError {
     world.insert(map);
 
     // create the player!
-    let player_entity =
-        spawner::player(
-            &mut spawner::SpawnContext {
-                world: &mut world,
-                rng: &mut rng,
-                position: Position { x: px, y: py },
-            });
+    let player_entity = spawner::player(&mut spawner::SpawnContext {
+        world: &mut world,
+        rng: &mut rng,
+        position: Position { x: px, y: py },
+    });
 
     world.insert(Point::new(px, py));
     world.insert(player_entity);
     world.insert(RunState::PreRun);
-    world.insert(gamelog::GameLog{ entries : vec!["Welcome to Rusty Roguelike".to_string()] });
+    world.insert(gamelog::GameLog {
+        entries: vec!["Welcome to Rusty Roguelike".to_string()],
+    });
 
     // create game state
     let gs = State {

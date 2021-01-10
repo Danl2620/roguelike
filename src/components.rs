@@ -1,8 +1,8 @@
+use rltk::{Point, RGB};
 use specs::prelude::*;
 use specs_derive::*;
-use std::cmp::{max,min,Ordering};
+use std::cmp::{max, min, Ordering};
 use std::ops::{Add, Sub};
-use rltk::{RGB,Point};
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
@@ -13,7 +13,7 @@ pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
 #[derive(Default, Component, Copy, Clone, PartialEq, PartialOrd)]
 pub struct Position {
     pub x: i32,
-    pub y: i32
+    pub y: i32,
 }
 
 pub fn manhattan_dist(p: &Position, q: &Position) -> i32 {
@@ -30,7 +30,10 @@ impl Add for Position {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        Self {x: self.x + other.x, y: self.y + other.y}
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
     }
 }
 
@@ -38,14 +41,17 @@ impl Sub for Position {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        Self {x: self.x - other.x, y: self.y - other.y}
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
     }
 }
 
 impl Eq for Position {}
 impl Ord for Position {
     fn cmp(&self, other: &Self) -> Ordering {
-        let origin = Position { x: 0, y: 0};
+        let origin = Position { x: 0, y: 0 };
         manhattan_dist(&origin, self)
             .partial_cmp(&manhattan_dist(&origin, other))
             .unwrap_or(Ordering::Equal)
@@ -58,19 +64,19 @@ pub struct CombatStats {
     pub max_hp: i32,
     pub hp: i32,
     pub defense: i32,
-    pub power: i32
+    pub power: i32,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug, Clone)]
 pub struct WantsToMelee {
-    pub target: Entity
+    pub target: Entity,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug)]
 pub struct SufferDamage {
-    pub amount: Vec<i32>
+    pub amount: Vec<i32>,
 }
 
 impl SufferDamage {
@@ -78,7 +84,9 @@ impl SufferDamage {
         if let Some(suffering) = store.get_mut(victim) {
             suffering.amount.push(amount);
         } else {
-            let dmg = SufferDamage { amount: vec![amount] };
+            let dmg = SufferDamage {
+                amount: vec![amount],
+            };
             store.insert(victim, dmg).expect("unable to insert damage");
         }
     }
@@ -89,7 +97,7 @@ impl SufferDamage {
 pub struct Renderable {
     pub glyph: rltk::FontCharType,
     pub fg: RGB,
-    pub bg: RGB
+    pub bg: RGB,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -97,13 +105,13 @@ pub struct Renderable {
 pub struct Viewshed {
     pub visible_tiles: Vec<rltk::Point>,
     pub range: i32,
-    pub dirty: bool
+    pub dirty: bool,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug)]
 pub struct Name {
-    pub name : String
+    pub name: String,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -125,22 +133,28 @@ pub struct Item {}
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug)]
 pub struct Potion {
-    pub heal_amount: i32
+    pub heal_amount: i32,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug, Clone)]
 pub struct InBackpack {
-    pub owner: Entity
+    pub owner: Entity,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug, Clone)]
 pub struct WantsToPickupItem {
-    pub collected_by : Entity,
-    pub item : Entity
+    pub collected_by: Entity,
+    pub item: Entity,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(PartialEq, Copy, Clone)]
-pub enum RunState { AwaitingInput, PreRun, PlayerTurn, MonsterTurn }
+pub enum RunState {
+    AwaitingInput,
+    PreRun,
+    PlayerTurn,
+    MonsterTurn,
+    ShowInventory,
+}
