@@ -1,13 +1,14 @@
-use rltk::{ RGB, RandomNumberGenerator };
+use super::{
+    BlocksTile, CombatStats, Item, Monster, Name, Player, Position, Potion, Rect, Renderable,
+    Viewshed,
+};
 use rand::seq::SliceRandom;
-use rand_core::{RngCore, Error, impls};
+use rand_core::{impls, Error, RngCore};
+use rltk::{RandomNumberGenerator, RGB};
 use specs::prelude::*;
-use super::{CombatStats, Player, Renderable, Name,
-    Position, Viewshed, Monster, BlocksTile, Rect,
-    Item, Potion};
 
-const MAX_MONSTERS_PER_ROOM : i32 = 4;
-const MAX_ITEMS_PER_ROOM : i32 = 2;
+const MAX_MONSTERS_PER_ROOM: i32 = 4;
+const MAX_ITEMS_PER_ROOM: i32 = 8;
 
 pub struct SpawnContext<'a> {
     pub world: &'a mut World,
@@ -17,7 +18,8 @@ pub struct SpawnContext<'a> {
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub fn player(context: &mut SpawnContext) -> Entity {
-    context.world
+    context
+        .world
         .create_entity()
         .with(context.position)
         .with(Renderable {
@@ -26,21 +28,28 @@ pub fn player(context: &mut SpawnContext) -> Entity {
             bg: RGB::named(rltk::BLACK),
         })
         .with(Player {})
-        .with(CombatStats {max_hp: 30, hp: 30, defense: 2, power: 5})
-        .with(Name{ name: "Player".to_string() })
+        .with(CombatStats {
+            max_hp: 30,
+            hp: 30,
+            defense: 2,
+            power: 5,
+        })
+        .with(Name {
+            name: "Player".to_string(),
+        })
         .with(Viewshed {
             visible_tiles: Vec::new(),
             range: 8,
-            dirty: true
+            dirty: true,
         })
         .build()
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub fn random_monster(context: &mut SpawnContext) -> Entity {
-    match context.rng.roll_dice(1,2) {
-        1 => {orc(&mut context.world, &context.position)}
-        _ => {goblin(&mut context.world, &context.position)}
+    match context.rng.roll_dice(1, 2) {
+        1 => orc(&mut context.world, &context.position),
+        _ => goblin(&mut context.world, &context.position),
     }
 }
 
@@ -55,65 +64,85 @@ fn goblin(world: &mut World, position: &Position) -> Entity {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-fn monster<S : ToString>(world: &mut World, position: &Position, glyph: rltk::FontCharType, name: S) -> Entity {
-    world.create_entity()
+fn monster<S: ToString>(
+    world: &mut World,
+    position: &Position,
+    glyph: rltk::FontCharType,
+    name: S,
+) -> Entity {
+    world
+        .create_entity()
         .with(*position)
-        .with(Renderable{
+        .with(Renderable {
             glyph,
             fg: RGB::named(rltk::RED),
-            bg: RGB::named(rltk::BLACK)
+            bg: RGB::named(rltk::BLACK),
         })
-        .with(Viewshed{ visible_tiles: Vec::new(), range: 8, dirty: true})
-        .with(Monster{})
-        .with(Name{ name: name.to_string() })
-        .with(BlocksTile{})
-        .with(CombatStats{max_hp:16, hp: 16, defense: 1, power: 4})
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 8,
+            dirty: true,
+        })
+        .with(Monster {})
+        .with(Name {
+            name: name.to_string(),
+        })
+        .with(BlocksTile {})
+        .with(CombatStats {
+            max_hp: 16,
+            hp: 16,
+            defense: 1,
+            power: 4,
+        })
         .build()
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub fn health_potion(world: &mut World, position: &Position) -> Entity {
-    world.create_entity()
+    world
+        .create_entity()
         .with(*position)
-        .with(Renderable{
+        .with(Renderable {
             glyph: rltk::to_cp437('i'),
             fg: RGB::named(rltk::MAGENTA),
             bg: RGB::named(rltk::BLACK),
         })
-        .with(Name { name: "Health Potion".to_string()})
-        .with(Item{})
-        .with(Potion{ heal_amount: 8})
+        .with(Name {
+            name: "Health Potion".to_string(),
+        })
+        .with(Item {})
+        .with(Potion { heal_amount: 8 })
         .build()
 }
 
 //#[derive(Debug)]
 struct RngWrapper<'a> {
-    rng: &'a mut RandomNumberGenerator
+    rng: &'a mut RandomNumberGenerator,
 }
 
 impl RngCore for RngWrapper<'_> {
-    fn next_u32(&mut self) -> u32 { self.rng.next_u64() as u32 }
-    fn next_u64(&mut self) -> u64 { self.rng.next_u64() }
+    fn next_u32(&mut self) -> u32 {
+        self.rng.next_u64() as u32
+    }
+    fn next_u64(&mut self) -> u64 {
+        self.rng.next_u64()
+    }
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         impls::fill_bytes_via_next(self, dest)
     }
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
         Ok(self.fill_bytes(dest))
-     }
+    }
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-pub fn spawn_room(
-    world: &mut World,
-    rng: &mut RandomNumberGenerator,
-    room: &Rect
-) {
+pub fn spawn_room(world: &mut World, rng: &mut RandomNumberGenerator, room: &Rect) {
     let mut room_positions = (0..room.area()).collect::<Vec<_>>();
     room_positions.shuffle(&mut RngWrapper { rng });
 
     let mut spawn_items = |count: i32| -> Vec<Position> {
-        let mut points : Vec<Position> = Vec::new();
-        for _i in 0 .. count {
+        let mut points: Vec<Position> = Vec::new();
+        for _i in 0..count {
             if let Some(idx) = room_positions.pop() {
                 points.push(room.idx_position(idx as usize));
             }
@@ -125,10 +154,10 @@ pub fn spawn_room(
     let item_points = spawn_items(rng.range(0, MAX_ITEMS_PER_ROOM));
 
     for p in monster_points.iter() {
-        random_monster(&mut SpawnContext { 
-            world: world, 
-            rng: rng, 
-            position: *p
+        random_monster(&mut SpawnContext {
+            world: world,
+            rng: rng,
+            position: *p,
         });
     }
 
@@ -136,4 +165,3 @@ pub fn spawn_room(
         health_potion(world, p);
     }
 }
-

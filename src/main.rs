@@ -24,8 +24,8 @@ mod gui;
 mod gamelog;
 pub use gamelog::GameLog;
 mod spawner;
-
-
+mod inventory_system;
+use inventory_system::ItemCollectionSystem;
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub struct State {
@@ -47,6 +47,8 @@ impl State {
         let mut damage = DamageSystem{};
         damage.run_now(&self.ecs);
         damage_system::delete_the_dead(&mut self.ecs);
+        let mut pickup = ItemCollectionSystem{};
+        pickup.run_now(&self.ecs);
         self.ecs.maintain();
     }
 }
@@ -125,6 +127,8 @@ fn main() -> rltk::BError {
     world.register::<SufferDamage>();
     world.register::<Item>();
     world.register::<Potion>();
+    world.register::<InBackpack>();
+    world.register::<WantsToPickupItem>();
 
     //world.insert(new_map(&gs));
     let viewport = Viewport { map_width: 80, map_height: 43, log_height: 7 };
