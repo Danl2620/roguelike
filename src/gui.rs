@@ -3,7 +3,7 @@ use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 // ------------------------------------------------------------------------------------------------------------------ //
-fn draw_inventory(world: &World, ctx: &mut Rltk) {
+fn draw_inventory(world: &World, ctx: &mut Rltk, viewport: &Viewport) {
     let player_entity = world.fetch::<Entity>();
     let names = world.read_storage::<Name>();
     let backpack = world.read_storage::<InBackpack>();
@@ -13,9 +13,9 @@ fn draw_inventory(world: &World, ctx: &mut Rltk) {
         .filter(|item| item.0.owner == *player_entity)
         .collect();
 
-    let count = inventory.len();
+    let count = inventory.len() as i32;
 
-    let mut y = (25 - (count / 2)) as i32;
+    let mut y = (viewport.map_height / 2 - count / 2) as i32;
     ctx.draw_box(
         15,
         y - 2,
@@ -118,7 +118,7 @@ pub fn draw_ui(world: &World, ctx: &mut Rltk, viewport: &Viewport, show_inventor
     }
 
     if show_inventory {
-        draw_inventory(world, ctx);
+        draw_inventory(world, ctx, viewport);
     }
 }
 
