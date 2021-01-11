@@ -1,6 +1,6 @@
 use super::{
-    BlocksTile, CombatStats, Item, Monster, Name, Player, Position, Potion, Rect, Renderable,
-    Viewshed,
+    BlocksTile, CombatStats, Consumable, Item, Monster, Name, Player, Position, ProvidesHealing,
+    Rect, Renderable, Viewshed,
 };
 use rand::seq::SliceRandom;
 use rand_core::{impls, Error, RngCore};
@@ -26,6 +26,7 @@ pub fn player(context: &mut SpawnContext) -> Entity {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
+            render_order: 0,
         })
         .with(Player {})
         .with(CombatStats {
@@ -77,6 +78,7 @@ fn monster<S: ToString>(
             glyph,
             fg: RGB::named(rltk::RED),
             bg: RGB::named(rltk::BLACK),
+            render_order: 0,
         })
         .with(Viewshed {
             visible_tiles: Vec::new(),
@@ -106,12 +108,14 @@ pub fn health_potion(world: &mut World, position: &Position) -> Entity {
             glyph: rltk::to_cp437('i'),
             fg: RGB::named(rltk::MAGENTA),
             bg: RGB::named(rltk::BLACK),
+            render_order: 2,
         })
         .with(Name {
             name: "Health Potion".to_string(),
         })
         .with(Item {})
-        .with(Potion { heal_amount: 8 })
+        .with(Consumable {})
+        .with(ProvidesHealing { amount: 8 })
         .build()
 }
 

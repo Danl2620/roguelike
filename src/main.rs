@@ -26,7 +26,7 @@ mod gui;
 //use gui::ItemMenuResult;
 mod inventory_system;
 mod spawner;
-use inventory_system::{ItemCollectionSystem, PotionUseSystem};
+use inventory_system::{ItemCollectionSystem, ItemUseSystem};
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub struct State {
@@ -37,8 +37,8 @@ pub struct State {
 // ------------------------------------------------------------------------------------------------------------------ //
 impl State {
     fn run_systems(&mut self) {
-        let mut potions = PotionUseSystem {};
-        potions.run_now(&self.ecs);
+        let mut use_items = ItemUseSystem {};
+        use_items.run_now(&self.ecs);
         let mut vis = VisibilitySystem {};
         vis.run_now(&self.ecs);
         let mut mob = MonsterAI {};
@@ -89,11 +89,11 @@ impl GameState for State {
                     gui::ItemMenuResult::Cancel => (RunState::AwaitingInput, false),
                     gui::ItemMenuResult::NoResponse => (newrunstate, true),
                     gui::ItemMenuResult::Selected(entity) => {
-                        let mut intent = self.ecs.write_storage::<WantsToDrinkPotion>();
+                        let mut intent = self.ecs.write_storage::<WantsToConsumeItem>();
                         intent
                             .insert(
                                 *self.ecs.fetch::<Entity>(),
-                                WantsToDrinkPotion { potion: entity },
+                                WantsToConsumeItem { item: entity },
                             )
                             .expect("Unable to insert intent");
                         (RunState::PlayerTurn, false)
@@ -117,7 +117,9 @@ impl GameState for State {
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
 
-        for (pos, render) in (&positions, &renderables).join() {
+        let mut data = (&positions, &renderables).join().collect::<Vec<_>>();
+        data.sort_by(|&a, &b| b.1.render_order.cmp(&a.1.render_order));
+        for (pos, render) in data {
             let idx = map.xy_idx(pos.x, pos.y);
             if map.visible_tiles[idx] {
                 ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
@@ -145,10 +147,11 @@ fn main() -> rltk::BError {
     world.register::<WantsToMelee>();
     world.register::<SufferDamage>();
     world.register::<Item>();
-    world.register::<Potion>();
+    world.register::<Consumable>();
+    world.register::<ProvidesHealing>();
     world.register::<InBackpack>();
     world.register::<WantsToPickupItem>();
-    world.register::<WantsToDrinkPotion>();
+    world.register::<WantsToConsumeItem>();
 
     //world.insert(new_map(&gs));
     let viewport = Viewport {
