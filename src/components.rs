@@ -150,6 +150,12 @@ pub struct WantsToPickupItem {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component, Debug)]
+pub struct WantsToDrinkPotion {
+    pub potion: Entity,
+}
+
+// ------------------------------------------------------------------------------------------------------------------ //
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
     AwaitingInput,

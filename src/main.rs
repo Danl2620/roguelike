@@ -23,10 +23,10 @@ use map_indexing_system::MapIndexingSystem;
 mod gamelog;
 pub use gamelog::GameLog;
 mod gui;
-use gui::ItemMenuResult;
+//use gui::ItemMenuResult;
 mod inventory_system;
 mod spawner;
-use inventory_system::ItemCollectionSystem;
+use inventory_system::{ItemCollectionSystem, PotionUseSystem};
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub struct State {
@@ -37,6 +37,8 @@ pub struct State {
 // ------------------------------------------------------------------------------------------------------------------ //
 impl State {
     fn run_systems(&mut self) {
+        let mut potions = PotionUseSystem {};
+        potions.run_now(&self.ecs);
         let mut vis = VisibilitySystem {};
         vis.run_now(&self.ecs);
         let mut mob = MonsterAI {};
@@ -87,13 +89,14 @@ impl GameState for State {
                     gui::ItemMenuResult::Cancel => (RunState::AwaitingInput, false),
                     gui::ItemMenuResult::NoResponse => (newrunstate, true),
                     gui::ItemMenuResult::Selected(entity) => {
-                        let names = self.ecs.read_storage::<Name>();
-                        let mut gamelog = self.ecs.fetch_mut::<gamelog::GameLog>();
-                        gamelog.entries.push(format!(
-                            "You try to use {}, but that's not implemented yet!",
-                            names.get(entity).unwrap().name
-                        ));
-                        (RunState::AwaitingInput, false)
+                        let mut intent = self.ecs.write_storage::<WantsToDrinkPotion>();
+                        intent
+                            .insert(
+                                *self.ecs.fetch::<Entity>(),
+                                WantsToDrinkPotion { potion: entity },
+                            )
+                            .expect("Unable to insert intent");
+                        (RunState::PlayerTurn, false)
                     }
                 }
             }
@@ -145,6 +148,7 @@ fn main() -> rltk::BError {
     world.register::<Potion>();
     world.register::<InBackpack>();
     world.register::<WantsToPickupItem>();
+    world.register::<WantsToDrinkPotion>();
 
     //world.insert(new_map(&gs));
     let viewport = Viewport {
