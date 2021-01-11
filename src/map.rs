@@ -1,5 +1,5 @@
-use rltk::{ RGB, Rltk, RandomNumberGenerator, BaseMap, Algorithm2D, Point };
-use super::{Rect, Viewshed, Position, Viewport, spawner};
+use super::{spawner, Position, Rect, Viewport, Viewshed};
+use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk, RGB};
 use specs::prelude::*;
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -10,12 +10,18 @@ pub enum TileType {
 }
 
 mod map_utils {
-    use super::{Rect};
-    use std::cmp::{max, min};
+    use super::Rect;
     use super::TileType;
-    
+    use std::cmp::{max, min};
+
     // ------------------------------------------------------------------------------------------------------------------ //
-    pub fn apply_horizontal_tunnel(map: &Rect, x1: i32, x2: i32, y: i32, tiles: &mut Vec<TileType>) {
+    pub fn apply_horizontal_tunnel(
+        map: &Rect,
+        x1: i32,
+        x2: i32,
+        y: i32,
+        tiles: &mut Vec<TileType>,
+    ) {
         for x in min(x1, x2)..=max(x1, x2) {
             let idx = map.xy_idx(x, y);
             if idx > 0 && idx < map.area() as usize {
@@ -54,30 +60,32 @@ pub struct Map {
     pub revealed_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked: Vec<bool>,
-    pub tile_content: Vec<Vec<Entity>>
+    pub tile_content: Vec<Vec<Entity>>,
 }
 
 impl Map {
     // ------------------------------------------------------------------------------------------------------------------ //
     pub fn xy_idx(&self, x: i32, y: i32) -> usize {
-        self.size.xy_idx(x,y)
+        self.size.xy_idx(x, y)
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    pub fn position_idx(&self, p:Position) -> usize {
-        self.xy_idx(p.x,p.y)
+    pub fn position_idx(&self, p: Position) -> usize {
+        self.xy_idx(p.x, p.y)
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    fn is_exit_valid(&self, x:i32, y:i32) -> bool {
-        if !self.size.contains(&Position { x, y }) {return false;}
-        let idx = self.xy_idx(x,y);
+    fn is_exit_valid(&self, x: i32, y: i32) -> bool {
+        if !self.size.contains(&Position { x, y }) {
+            return false;
+        }
+        let idx = self.xy_idx(x, y);
         !self.blocked[idx]
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
     pub fn populate_blocked(&mut self) {
-        for (i,tile) in self.tiles.iter_mut().enumerate() {
+        for (i, tile) in self.tiles.iter_mut().enumerate() {
             self.blocked[i] = *tile == TileType::Wall;
         }
     }
@@ -92,10 +100,10 @@ impl Map {
     // ------------------------------------------------------------------------------------------------------------------ //
     pub fn new_map_rooms_and_corridors(
         world: &mut World,
-        viewport: &Viewport, 
-        rng: &mut RandomNumberGenerator
+        viewport: &Viewport,
+        rng: &mut RandomNumberGenerator,
     ) -> Map {
-        let size = Rect::new(0,0,viewport.map_width,viewport.map_height);
+        let size = Rect::new(0, 0, viewport.map_width, viewport.map_height);
         let mut tiles = vec![TileType::Wall; size.area() as usize];
         let mut rooms = Vec::new();
 
@@ -149,7 +157,7 @@ impl Map {
             revealed_tiles: vec![false; vec_size],
             visible_tiles: vec![false; vec_size],
             blocked: vec![false; vec_size],
-            tile_content: vec![Vec::new(); vec_size]
+            tile_content: vec![Vec::new(); vec_size],
         }
     }
 
@@ -171,7 +179,11 @@ impl Map {
                         TileType::Wall => (RGB::from_f32(0.0, 1.0, 0.0), '#'),
                     };
 
-                    let color = if self.visible_tiles[idx] { visible_color } else { visible_color.to_greyscale() };
+                    let color = if self.visible_tiles[idx] {
+                        visible_color
+                    } else {
+                        visible_color.to_greyscale()
+                    };
 
                     ctx.set(
                         x,
@@ -206,37 +218,38 @@ impl BaseMap for Map {
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    fn get_available_exits(&self, idx:usize) -> rltk::SmallVec<[(usize, f32); 10]> {
+    fn get_available_exits(&self, idx: usize) -> rltk::SmallVec<[(usize, f32); 10]> {
         let position = self.size.idx_position(idx);
         let w = self.size.width();
 
         let directions = [
             // cardinal directions
-            (-1,  0, -1, 1.0),
-            ( 1,  0,  1, 1.0),
-            ( 0, -1, -w, 1.0),
-            ( 0,  1,  w, 1.0),
-
+            (-1, 0, -1, 1.0),
+            (1, 0, 1, 1.0),
+            (0, -1, -w, 1.0),
+            (0, 1, w, 1.0),
             // diagonals
-            (-1, -1,-1-w, 1.45),
-            ( 1, -1, 1-w, 1.45),
-            (-1,  1,-1+w, 1.45),
-            ( 1,  1, 1+w, 1.45)
+            (-1, -1, -1 - w, 1.45),
+            (1, -1, 1 - w, 1.45),
+            (-1, 1, -1 + w, 1.45),
+            (1, 1, 1 + w, 1.45),
         ];
 
         let valid_dirs = directions.iter().filter(|p| {
-            let (dx,dy,_,_) = p;
+            let (dx, dy, _, _) = p;
             self.is_exit_valid(position.x + dx, position.y + dy)
         });
 
-        valid_dirs.map(|d| {
-            let (_,_,d_index,weight) = d;
-            ((idx as i32 + d_index) as usize, *weight as f32)
-        }).collect()
+        valid_dirs
+            .map(|d| {
+                let (_, _, d_index, weight) = d;
+                ((idx as i32 + d_index) as usize, *weight as f32)
+            })
+            .collect()
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    fn get_pathing_distance(&self, idx1:usize, idx2:usize) -> f32 {
+    fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
         let w = self.size.width() as usize;
         let p1 = Point::new(idx1 % w, idx1 / w);
         let p2 = Point::new(idx2 % w, idx2 / w);

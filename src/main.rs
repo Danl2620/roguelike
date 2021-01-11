@@ -159,22 +159,9 @@ fn main() -> rltk::BError {
         map_height: 43,
         log_height: 7,
     };
-    let mut rng = rltk::RandomNumberGenerator::seeded(1);
+    let mut rng = rltk::RandomNumberGenerator::new();
     let map = Map::new_map_rooms_and_corridors(&mut world, &viewport, &mut rng);
     let (px, py) = map.rooms[0].center();
-
-    // for room in map.rooms.iter().skip(1) {
-    //     let (x,y) = room.center();
-
-    //     let mut context = spawner::SpawnContext {
-    //         world: &mut world,
-    //         rng: &mut rng,
-    //         position: Position{x,y},
-    //     };
-
-    //     // create a room monster per room
-    //     spawner::random_monster(&mut context);
-    // }
 
     world.insert(map);
 

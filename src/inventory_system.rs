@@ -4,8 +4,10 @@ use super::{
 };
 use specs::prelude::*;
 
+// ------------------------------------------------------------------------------------------------------------------ //
 pub struct ItemCollectionSystem {}
 
+// ------------------------------------------------------------------------------------------------------------------ //
 impl<'a> System<'a> for ItemCollectionSystem {
     #[allow(clippy::type_complexity)]
     type SystemData = (
@@ -44,8 +46,10 @@ impl<'a> System<'a> for ItemCollectionSystem {
     }
 }
 
+// ------------------------------------------------------------------------------------------------------------------ //
 pub struct ItemUseSystem {}
 
+// ------------------------------------------------------------------------------------------------------------------ //
 impl<'a> System<'a> for ItemUseSystem {
     #[allow(clippy::type_complexity)]
     type SystemData = (

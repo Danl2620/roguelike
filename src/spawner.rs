@@ -10,6 +10,7 @@ use specs::prelude::*;
 const MAX_MONSTERS_PER_ROOM: i32 = 4;
 const MAX_ITEMS_PER_ROOM: i32 = 8;
 
+// ------------------------------------------------------------------------------------------------------------------ //
 pub struct SpawnContext<'a> {
     pub world: &'a mut World,
     pub rng: &'a mut RandomNumberGenerator,
