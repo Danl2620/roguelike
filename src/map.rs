@@ -42,8 +42,8 @@ mod map_utils {
 
     // ------------------------------------------------------------------------------------------------------------------ //
     pub fn apply_room_to_map(map: &Rect, room: &Rect, tiles: &mut Vec<TileType>) {
-        for y in room.min.y..=room.max.y {
-            for x in room.min.x..=room.max.x {
+        for y in room.min.y..room.max.y {
+            for x in room.min.x..room.max.x {
                 let idx = map.xy_idx(x, y);
                 tiles[idx] = TileType::Floor;
             }
@@ -116,36 +116,44 @@ impl Map {
                 rng.range(SIZE_RANGE.0, SIZE_RANGE.1),
             );
             let (x, y) = (
-                rng.range(0, size.width() - w),
-                rng.range(0, size.height() - h),
+                rng.range(1, size.width() - w - 1),
+                rng.range(1, size.height() - h - 1),
             );
             let new_room = Rect::new(x, y, w, h);
             let mut ok = true;
             for other_room in rooms.iter() {
                 if new_room.intersect(other_room) {
-                    ok = false
+                    ok = false;
+                    break;
                 }
             }
             if ok {
-                map_utils::apply_room_to_map(&size, &new_room, &mut tiles);
-
-                if !rooms.is_empty() {
-                    let (new_x, new_y) = new_room.center();
-                    let (prev_x, prev_y) = rooms[rooms.len() - 1].center();
-                    let (tunnel_x, tunnel_y) = if rng.range(0, 2) == 1 {
-                        (new_x, prev_y)
-                    } else {
-                        (prev_x, new_y)
-                    };
-                    map_utils::apply_vertical_tunnel(&size, prev_y, new_y, tunnel_x, &mut tiles);
-                    map_utils::apply_horizontal_tunnel(&size, prev_x, new_x, tunnel_y, &mut tiles);
-                }
-
                 rooms.push(new_room);
             }
         }
 
-        for room in &rooms {
+        // rooms.push(Rect::new(2, 1, 6, 6));
+        // rooms.push(Rect::new(1, 12, 6, 6));
+
+        dbg!(for room in &rooms {
+            room.print_debug();
+        });
+
+        for (index, room) in rooms.iter().enumerate() {
+            map_utils::apply_room_to_map(&size, &room, &mut tiles);
+
+            if index > 0 {
+                let (new_x, new_y) = room.center();
+                let (prev_x, prev_y) = rooms[index - 1].center();
+                let (tunnel_x, tunnel_y) = if rng.range(0, 2) == 1 {
+                    (new_x, prev_y)
+                } else {
+                    (prev_x, new_y)
+                };
+                map_utils::apply_vertical_tunnel(&size, prev_y, new_y, tunnel_x, &mut tiles);
+                map_utils::apply_horizontal_tunnel(&size, prev_x, new_x, tunnel_y, &mut tiles);
+            }
+
             spawner::spawn_room(world, rng, &room);
         }
 
@@ -162,21 +170,28 @@ impl Map {
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    pub fn draw_map(&self, ecs: &World, ctx: &mut Rltk) {
+    fn draw_map_visibility(&self, ecs: &World, viewport: &Viewport, ctx: &mut Rltk) {
         let mut viewsheds = ecs.write_storage::<Viewshed>();
-        //let mut players = ecs.write_storage::<Player>();
-        //let map = ecs.fetch::<Map>();
+
+        let floor = rltk::to_cp437('.');
+        let wall = rltk::to_cp437('#');
+        //let numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        let black = RGB::from_f32(0., 0., 0.);
 
         for _viewshed in (&mut viewsheds).join() {
-            let mut y = 0;
-            let mut x = 0;
+            let mut y = 0 as i32;
+            let mut x = 0 as i32;
             for (idx, tile) in self.tiles.iter().enumerate() {
                 //render a tile depending on the tile type
 
                 if self.revealed_tiles[idx] {
                     let (visible_color, character) = match tile {
-                        TileType::Floor => (RGB::from_f32(0.5, 0.5, 0.5), '.'),
-                        TileType::Wall => (RGB::from_f32(0.0, 1.0, 0.0), '#'),
+                        TileType::Floor => (RGB::from_f32(0.5, 0.5, 0.5), floor),
+                        TileType::Wall => (RGB::from_f32(0.0, 1.0, 0.0), wall),
+                        // TileType::Wall => (
+                        //     RGB::from_f32(0.0, 1.0, 0.0),
+                        //     rltk::to_cp437(numbers[(x % 10) as usize]),
+                        // ),
                     };
 
                     let color = if self.visible_tiles[idx] {
@@ -185,22 +200,52 @@ impl Map {
                         visible_color.to_greyscale()
                     };
 
-                    ctx.set(
-                        x,
-                        y,
-                        color,
-                        RGB::from_f32(0., 0., 0.),
-                        rltk::to_cp437(character),
-                    );
+                    ctx.set(x, y, color, black, character);
                 }
 
                 x += 1;
-                if x > 79 {
+                if x > viewport.map_width - 1 {
                     x = 0;
                     y += 1;
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------ //
+    fn draw_map_debug(&self, ecs: &World, viewport: &Viewport, ctx: &mut Rltk) {
+        let floor = rltk::to_cp437('.');
+        let wall = rltk::to_cp437('#');
+        let numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        let black = RGB::from_f32(0., 0., 0.);
+
+        let mut y = 0;
+        let mut x = 0;
+        for tile in self.tiles.iter() {
+            // Render a tile depending upon the tile type
+            let (color, character) = match tile {
+                TileType::Floor => (RGB::from_f32(0.5, 0.5, 0.5), floor),
+                TileType::Wall => (
+                    RGB::from_f32(0.0, 1.0, 0.0),
+                    rltk::to_cp437(numbers[(x % 10) as usize]),
+                ),
+                //wall),
+            };
+
+            ctx.set(x, y, color, black, character);
+
+            // Move the coordinates
+            x += 1;
+            if x > viewport.map_width - 1 {
+                x = 0;
+                y += 1;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------ //
+    pub fn draw_map(&self, ecs: &World, viewport: &Viewport, ctx: &mut Rltk) {
+        self.draw_map_visibility(ecs, viewport, ctx)
     }
 }
 
@@ -208,6 +253,11 @@ impl Map {
 impl Algorithm2D for Map {
     fn dimensions(&self) -> Point {
         Point::new(self.size.width(), self.size.height())
+    }
+
+    fn in_bounds(&self, pos: rltk::Point) -> bool {
+        let bounds = self.dimensions();
+        pos.x >= 0 && pos.x < bounds.x && pos.y >= 0 && pos.y < bounds.y
     }
 }
 

@@ -10,7 +10,7 @@ pub fn range<T: std::cmp::Ord>(l: T, v: T, u: T) -> T {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-#[derive(Default, Component, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Component, Copy, Clone, PartialEq, PartialOrd)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -164,6 +164,18 @@ pub struct WantsToPickupItem {
 #[derive(Component, Debug)]
 pub struct WantsToConsumeItem {
     pub item: Entity,
+}
+
+// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component, Debug)]
+pub struct Ranged {
+    pub ranged: i32,
+}
+
+// ------------------------------------------------------------------------------------------------------------------ //
+#[derive(Component, Debug)]
+pub struct InflictsDamage {
+    pub amount: i32,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //

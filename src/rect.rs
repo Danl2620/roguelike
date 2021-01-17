@@ -1,4 +1,4 @@
-use super::{Position};
+use super::Position;
 
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Default)]
@@ -18,13 +18,19 @@ impl Rect {
     }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    pub fn width(&self) -> i32 { self.max.x - self.min.x }
+    pub fn width(&self) -> i32 {
+        self.max.x - self.min.x
+    }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    pub fn height(&self) -> i32 { self.max.y - self.min.y }
+    pub fn height(&self) -> i32 {
+        self.max.y - self.min.y
+    }
 
     // ------------------------------------------------------------------------------------------------------------------ //
-    pub fn area(&self) -> i32 { self.width() * self.height() }
+    pub fn area(&self) -> i32 {
+        self.width() * self.height()
+    }
 
     // ------------------------------------------------------------------------------------------------------------------ //
     pub fn contains(&self, position: &Position) -> bool {
@@ -51,9 +57,12 @@ impl Rect {
         let i = idx as i32;
         Position {
             x: self.min.x + (i % self.width()),
-            y: self.min.y + (i / self.width())
+            y: self.min.y + (i / self.width()),
         }
     }
 
-
+    // ------------------------------------------------------------------------------------------------------------------ //
+    pub fn print_debug(&self) {
+        println!("rect: {:?} -> {:?}", self.min, self.max);
+    }
 }

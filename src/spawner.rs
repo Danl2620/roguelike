@@ -7,8 +7,8 @@ use rand_core::{impls, Error, RngCore};
 use rltk::{RandomNumberGenerator, RGB};
 use specs::prelude::*;
 
-const MAX_MONSTERS_PER_ROOM: i32 = 4;
-const MAX_ITEMS_PER_ROOM: i32 = 8;
+const MAX_MONSTERS_PER_ROOM: i32 = 2;
+const MAX_ITEMS_PER_ROOM: i32 = 4;
 
 // ------------------------------------------------------------------------------------------------------------------ //
 pub struct SpawnContext<'a> {
@@ -145,12 +145,11 @@ pub fn spawn_room(world: &mut World, rng: &mut RandomNumberGenerator, room: &Rec
     let mut room_positions = (0..room.area()).collect::<Vec<_>>();
     room_positions.shuffle(&mut RngWrapper { rng });
 
-    let mut spawn_items = |count: i32| -> Vec<Position> {
+    let spawn_items = |count: i32| -> Vec<Position> {
         let mut points: Vec<Position> = Vec::new();
-        for _i in 0..count {
-            if let Some(idx) = room_positions.pop() {
-                points.push(room.idx_position(idx as usize));
-            }
+        let point_count = i32::min(count, room.area());
+        for ii in 0..point_count {
+            points.push(room.idx_position(room_positions[ii as usize] as usize));
         }
         points
     };

@@ -112,7 +112,8 @@ impl GameState for State {
         damage_system::delete_the_dead(&mut self.ecs);
 
         let map = self.ecs.fetch::<Map>();
-        map.draw_map(&self.ecs, ctx);
+        //map.draw_map(&self.ecs, &self.viewport, ctx);
+        map.draw_map(&self.ecs, &self.viewport, ctx);
 
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
@@ -159,7 +160,8 @@ fn main() -> rltk::BError {
         map_height: 43,
         log_height: 7,
     };
-    let mut rng = rltk::RandomNumberGenerator::new();
+    //let mut rng = rltk::RandomNumberGenerator::new();
+    let mut rng = rltk::RandomNumberGenerator::seeded(1);
     let map = Map::new_map_rooms_and_corridors(&mut world, &viewport, &mut rng);
     let (px, py) = map.rooms[0].center();
 
