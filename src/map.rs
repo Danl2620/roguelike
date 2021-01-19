@@ -132,6 +132,7 @@ impl Map {
             }
         }
 
+        // some test rooms instead:
         // rooms.push(Rect::new(2, 1, 6, 6));
         // rooms.push(Rect::new(1, 12, 6, 6));
 
@@ -216,7 +217,7 @@ impl Map {
     fn draw_map_debug(&self, ecs: &World, viewport: &Viewport, ctx: &mut Rltk) {
         let floor = rltk::to_cp437('.');
         let wall = rltk::to_cp437('#');
-        let numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        //let numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         let black = RGB::from_f32(0., 0., 0.);
 
         let mut y = 0;
@@ -227,9 +228,9 @@ impl Map {
                 TileType::Floor => (RGB::from_f32(0.5, 0.5, 0.5), floor),
                 TileType::Wall => (
                     RGB::from_f32(0.0, 1.0, 0.0),
-                    rltk::to_cp437(numbers[(x % 10) as usize]),
+                    //rltk::to_cp437(numbers[(x % 10) as usize]),
+                    wall,
                 ),
-                //wall),
             };
 
             ctx.set(x, y, color, black, character);

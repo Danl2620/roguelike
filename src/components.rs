@@ -169,7 +169,7 @@ pub struct WantsToConsumeItem {
 // ------------------------------------------------------------------------------------------------------------------ //
 #[derive(Component, Debug)]
 pub struct Ranged {
-    pub ranged: i32,
+    pub range: i32,
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -186,4 +186,5 @@ pub enum RunState {
     PlayerTurn,
     MonsterTurn,
     ShowInventory,
+    ShowTargeting { range: i32, item: Entity },
 }

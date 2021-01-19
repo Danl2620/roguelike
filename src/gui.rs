@@ -1,5 +1,5 @@
-use super::{CombatStats, GameLog, InBackpack, Name, Player, State, Viewport};
-use rltk::{Rltk, VirtualKeyCode, RGB};
+use super::{CombatStats, GameLog, InBackpack, Name, Player, Position, State, Viewport, Viewshed};
+use rltk::{Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 // ------------------------------------------------------------------------------------------------------------------ //
@@ -131,6 +131,14 @@ pub enum ItemMenuResult {
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
+#[derive(PartialEq, Copy, Clone)]
+pub enum ItemTargetingResult {
+    Cancel,
+    NoResponse,
+    Targeted(Point),
+}
+
+// ------------------------------------------------------------------------------------------------------------------ //
 pub fn menu_inventory(gs: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
     let world = &gs.ecs;
     let player_entity = world.fetch::<Entity>();
@@ -157,4 +165,39 @@ pub fn menu_inventory(gs: &mut State, ctx: &mut Rltk) -> ItemMenuResult {
             }
         },
     }
+}
+
+// ------------------------------------------------------------------------------------------------------------------ //
+pub fn ranged_target(gs: &mut State, ctx: &mut Rltk, range: i32) -> ItemTargetingResult {
+    let player_entity = gs.ecs.fetch::<Entity>();
+    let player_pos = gs.ecs.fetch::<Point>();
+    let viewsheds = gs.ecs.read_storage::<Viewshed>();
+
+    ctx.print_color(
+        5,
+        0,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        "Select Target:",
+    );
+
+    // highlight available target cells
+    let mut available_cells = Vec::new();
+    let visible = viewsheds.get(*player_entity);
+    if let Some(visible) = visible {
+        // we have a viewshed
+        for visible_p in visible.visible_tiles.iter() {
+            let distance = rltk::DistanceAlg::Pythagoras.distance2d(*player_pos, *visible_p);
+            if distance <= range as f32 {
+                ctx.set_bg(visible_p.x, visible_p.y, RGB::named(rltk::BLUE));
+                available_cells.push(visible_p);
+            }
+        }
+    } else {
+        return ItemTargetingResult::Cancel;
+    }
+
+    // draw mouse cursor
+
+    ItemTargetingResult::NoResponse
 }

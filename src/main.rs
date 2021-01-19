@@ -60,7 +60,6 @@ impl State {
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
-        ctx.print(1, 1, "Hello Rust Roguelike!");
 
         let mut newrunstate;
         {
@@ -89,17 +88,34 @@ impl GameState for State {
                     gui::ItemMenuResult::Cancel => (RunState::AwaitingInput, false),
                     gui::ItemMenuResult::NoResponse => (newrunstate, true),
                     gui::ItemMenuResult::Selected(entity) => {
-                        let mut intent = self.ecs.write_storage::<WantsToConsumeItem>();
-                        intent
-                            .insert(
-                                *self.ecs.fetch::<Entity>(),
-                                WantsToConsumeItem { item: entity },
+                        let is_ranged = self.ecs.read_storage::<Ranged>();
+                        let is_item_ranged = is_ranged.get(entity);
+                        if let Some(is_item_ranged) = is_item_ranged {
+                            (
+                                RunState::ShowTargeting {
+                                    range: is_item_ranged.range,
+                                    item: entity,
+                                },
+                                false,
                             )
-                            .expect("Unable to insert intent");
-                        (RunState::PlayerTurn, false)
+                        } else {
+                            let mut intent = self.ecs.write_storage::<WantsToConsumeItem>();
+                            intent
+                                .insert(
+                                    *self.ecs.fetch::<Entity>(),
+                                    WantsToConsumeItem { item: entity },
+                                )
+                                .expect("Unable to insert intent");
+                            (RunState::PlayerTurn, false)
+                        }
                     }
                 }
             }
+            RunState::ShowTargeting { range, item } => match gui::ranged_target(self, ctx, range) {
+                gui::ItemTargetingResult::Cancel => (RunState::AwaitingInput, false),
+                gui::ItemTargetingResult::NoResponse => (RunState::AwaitingInput, false),
+                gui::ItemTargetingResult::Targeted(_p) => (RunState::AwaitingInput, false),
+            },
         };
 
         newrunstate = rs;
@@ -153,6 +169,8 @@ fn main() -> rltk::BError {
     world.register::<InBackpack>();
     world.register::<WantsToPickupItem>();
     world.register::<WantsToConsumeItem>();
+    world.register::<Ranged>();
+    world.register::<InflictsDamage>();
 
     //world.insert(new_map(&gs));
     let viewport = Viewport {
@@ -161,7 +179,7 @@ fn main() -> rltk::BError {
         log_height: 7,
     };
     //let mut rng = rltk::RandomNumberGenerator::new();
-    let mut rng = rltk::RandomNumberGenerator::seeded(1);
+    let mut rng = rltk::RandomNumberGenerator::seeded(2);
     let map = Map::new_map_rooms_and_corridors(&mut world, &viewport, &mut rng);
     let (px, py) = map.rooms[0].center();
 

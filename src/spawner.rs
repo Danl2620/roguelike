@@ -1,6 +1,6 @@
 use super::{
-    BlocksTile, CombatStats, Consumable, Item, Monster, Name, Player, Position, ProvidesHealing,
-    Rect, Renderable, Viewshed,
+    BlocksTile, CombatStats, Consumable, InflictsDamage, Item, Monster, Name, Player, Position,
+    ProvidesHealing, Ranged, Rect, Renderable, Viewshed,
 };
 use rand::seq::SliceRandom;
 use rand_core::{impls, Error, RngCore};
@@ -101,7 +101,7 @@ fn monster<S: ToString>(
 }
 
 // ------------------------------------------------------------------------------------------------------------------ //
-pub fn health_potion(world: &mut World, position: &Position) -> Entity {
+fn health_potion(world: &mut World, position: &Position) -> Entity {
     world
         .create_entity()
         .with(*position)
@@ -120,6 +120,36 @@ pub fn health_potion(world: &mut World, position: &Position) -> Entity {
         .build()
 }
 
+// ------------------------------------------------------------------------------------------------------------------ //
+fn magic_missile_scroll(world: &mut World, position: &Position) -> Entity {
+    world
+        .create_entity()
+        .with(*position)
+        .with(Renderable {
+            glyph: rltk::to_cp437('}'),
+            fg: RGB::named(rltk::CYAN),
+            bg: RGB::named(rltk::BLACK),
+            render_order: 2,
+        })
+        .with(Name {
+            name: "Magic Missile Scroll".to_string(),
+        })
+        .with(Item {})
+        .with(Consumable {})
+        .with(Ranged { range: 6 })
+        .with(InflictsDamage { amount: 8 })
+        .build()
+}
+
+// ------------------------------------------------------------------------------------------------------------------ //
+fn random_item(context: &mut SpawnContext) -> Entity {
+    match context.rng.roll_dice(1, 2) {
+        1 => health_potion(&mut context.world, &context.position),
+        _ => magic_missile_scroll(&mut context.world, &context.position),
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------ //
 //#[derive(Debug)]
 struct RngWrapper<'a> {
     rng: &'a mut RandomNumberGenerator,
@@ -166,6 +196,10 @@ pub fn spawn_room(world: &mut World, rng: &mut RandomNumberGenerator, room: &Rec
     }
 
     for p in item_points.iter() {
-        health_potion(world, p);
+        random_item(&mut SpawnContext {
+            world: world,
+            rng: rng,
+            position: *p,
+        });
     }
 }
